@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MedBot — Medical Assistant</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='style.css') }}"
+    />
+  </head>
+  <body>
+    <div class="chat-container">
+      <!-- Header -->
+      <header class="chat-header">
+        <div class="header-icon">&#9764;</div>
+        <div class="header-text">
+          <h1>MedBot</h1>
+          <p>Your AI Medical Assistant</p>
+        </div>
+      </header>
+
+      <!-- Chat Messages -->
+      <div class="chat-box" id="chatBox">
+        <div class="message bot-message">
+          <div class="avatar bot-avatar">M</div>
+          <div class="bubble bot-bubble">
+            Hi! I'm <strong>MedBot</strong>. Ask me anything about medical
+            information and I'll do my best to help.
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area -->
+      <form class="chat-input" id="chatForm" autocomplete="off">
+        <input
+          type="text"
+          id="userInput"
+          name="msg"
+          placeholder="Type your medical question..."
+          required
+        />
+        <button type="submit" id="sendBtn">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </form>
+    </div>
+
+    <script>
+      const chatBox = document.getElementById("chatBox");
+      const chatForm = document.getElementById("chatForm");
+      const userInput = document.getElementById("userInput");
+      const sendBtn = document.getElementById("sendBtn");
+
+      function appendMessage(text, sender) {
+        const wrapper = document.createElement("div");
+        wrapper.classList.add(
+          "message",
+          sender === "user" ? "user-message" : "bot-message",
+        );
+
+        const avatar = document.createElement("div");
+        avatar.classList.add(
+          "avatar",
+          sender === "user" ? "user-avatar" : "bot-avatar",
+        );
+        avatar.textContent = sender === "user" ? "Y" : "M";
+
+        const bubble = document.createElement("div");
+        bubble.classList.add(
+          "bubble",
+          sender === "user" ? "user-bubble" : "bot-bubble",
+        );
+        bubble.textContent = text;
+
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(bubble);
+        chatBox.appendChild(wrapper);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+
+      function showTyping() {
+        const wrapper = document.createElement("div");
+        wrapper.classList.add("message", "bot-message", "typing-indicator");
+        wrapper.innerHTML = `
+                <div class="avatar bot-avatar">M</div>
+                <div class="bubble bot-bubble">
+                    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+                </div>`;
+        chatBox.appendChild(wrapper);
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return wrapper;
+      }
+
+      chatForm.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const msg = userInput.value.trim();
+        if (!msg) return;
+
+        appendMessage(msg, "user");
+        userInput.value = "";
+        sendBtn.disabled = true;
+
+        const typing = showTyping();
+
+        try {
+          const formData = new FormData();
+          formData.append("msg", msg);
+
+          const res = await fetch("/get", { method: "POST", body: formData });
+          const answer = await res.text();
+
+          typing.remove();
+          appendMessage(answer, "bot");
+        } catch (err) {
+          typing.remove();
+          appendMessage(
+            "Sorry, something went wrong. Please try again.",
+            "bot",
+          );
+        }
+
+        sendBtn.disabled = false;
+        userInput.focus();
+      });
+    </script>
+  </body>
+</html>

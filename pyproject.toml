@@ -1,0 +1,18 @@
+[project]
+name = "medbot-rag"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "flask==3.1.1",
+    "huggingface-hub>=0.36.2",
+    "langchain==0.3.26",
+    "langchain-community==0.3.26",
+    "langchain-huggingface>=0.3.1",
+    "langchain-pinecone==0.2.8",
+    "openai>=2.24.0",
+    "pypdf==5.6.1",
+    "python-dotenv==1.1.0",
+    "sentence-transformers==4.1.0",
+]

@@ -4,11 +4,12 @@ mkdir -p data
 touch src/__init__.py
 touch src/helper.py
 touch src/prompt.py
-touch src/.env
+touch .env
 touch src/setup.py
-touch src/app.py
-touch Notebooks/itter1.py
+touch app.py
+touch Notebooks/itter1.ipynb
 touch requirements.txt
+touch store_index.py
 
 
 echo "Folders & Files created successfully!"
