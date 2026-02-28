@@ -4,7 +4,8 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain 
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
 from dotenv import load_dotenv
 from src.prompt import *
 import os 
@@ -32,7 +33,7 @@ retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k":
 
 llm_endpoint = HuggingFaceEndpoint(
     repo_id="Qwen/Qwen2.5-Coder-3B-Instruct",
-    max_new_tokens=512,
+    max_new_tokens=200,
     temperature=0.1,
     huggingfacehub_api_token=HF_TOKEN,
     provider="nscale",
@@ -40,8 +41,12 @@ llm_endpoint = HuggingFaceEndpoint(
 )
 llm = ChatHuggingFace(llm=llm_endpoint)
 
+# Chat history for conversation memory
+chat_history = []
+
 prompt = ChatPromptTemplate.from_messages([
     ("system", system_prompt),
+    MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}")
 ])
 
@@ -56,11 +61,12 @@ def home():
 
 @app.route("/get", methods=["POST"])
 def chat():
+    global chat_history
     msg = request.form.get("msg", "")
     if not msg.strip():
         return "Please enter a valid question.", 400
     try:
-        response = rag_chain.invoke({"input": msg})
+        response = rag_chain.invoke({"input": msg, "chat_history": chat_history})
         answer = str(response["answer"])
 
         # Extract unique sources
@@ -75,10 +81,25 @@ def chat():
 
         answer += "\n\n⚠️ Disclaimer: This is not a substitute for professional medical advice. Please consult a qualified healthcare provider for serious concerns."
 
+        # Update chat history
+        chat_history.append(HumanMessage(content=msg))
+        chat_history.append(AIMessage(content=answer))
+
+        # Keep only last 10 exchanges (20 messages) to avoid token overflow
+        if len(chat_history) > 20:
+            chat_history = chat_history[-20:]
+
         return answer
     except Exception as e:
         app.logger.error(f"Error processing query: {e}")
         return "Sorry, something went wrong on our end. Please try again later.", 500
+
+
+@app.route("/clear", methods=["POST"])
+def clear_chat():
+    global chat_history
+    chat_history = []
+    return "Chat history cleared.", 200
 
 
 if __name__ == "__main__":
