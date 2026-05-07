@@ -32,11 +32,10 @@ docsearch = PineconeVectorStore.from_existing_index(
 retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
 
 llm_endpoint = HuggingFaceEndpoint(
-    repo_id="Qwen/Qwen2.5-Coder-3B-Instruct",
+    repo_id="meta-llama/Llama-3.1-8B-Instruct",
     max_new_tokens=200,
     temperature=0.1,
     huggingfacehub_api_token=HF_TOKEN,
-    provider="nscale",
     task="conversational",
 )
 llm = ChatHuggingFace(llm=llm_endpoint)
