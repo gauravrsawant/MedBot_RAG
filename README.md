@@ -101,6 +101,40 @@ docker build -t medbot-rag .
 docker run -p 8080:8080 --env-file .env medbot-rag
 ```
 
+## AWS deployment (EC2 + ECR + GitHub Actions)
+
+High-level flow: GitHub Actions builds the Docker image, pushes it to ECR, and the self-hosted runner on EC2 pulls and runs the container.
+
+### 1) Create resources in the AWS Console
+
+- Create an IAM user with access to ECR and EC2.
+- Create an ECR repository.
+- Create or select an EC2 instance and install Docker.
+- Register a GitHub Actions self-hosted runner on the EC2 instance.
+
+### 2) Add GitHub repository secrets
+
+Set these secrets in your GitHub repo:
+
+- AWS_ACCESS_KEY_ID
+- AWS_SECRET_ACCESS_KEY
+- AWS_DEFAULT_REGION
+- ECR_REPO
+- PINECONE_API_KEY
+- HF_TOKEN
+
+### 3) CI/CD flow
+
+On every push of selected files to GitHub, the workflow:
+
+- Builds the Docker image.
+- Pushes the image to ECR.
+- Pulls and runs the container on EC2 via the self-hosted runner.
+
+### 4) Security group
+
+Allow inbound TCP 8080 on the EC2 security group.
+
 ## Notes
 
 - This project is for informational use and is not a substitute for professional medical advice.
