@@ -3,6 +3,15 @@ name: Deploy Application Docker Image to EC2 instance
 on:
   push:
     branches: [main]
+    paths:
+      - "app.py"
+      - "store_index.py"
+      - "requirements.txt"
+      - "Dockerfile"
+      - "src/**"
+      - "templates/**"
+      - "static/**"
+      - ".github/workflows/cicd.yaml"
 
 jobs:
   Continuous-Integration:
