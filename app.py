@@ -2,7 +2,6 @@ from flask import Flask, render_template, jsonify, request
 from src.helper import embedding_model
 from langchain_pinecone import PineconeVectorStore
 from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
-from langchain.chains import create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain 
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
@@ -16,6 +15,7 @@ load_dotenv()
 
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 HF_TOKEN = os.environ.get("HF_TOKEN")
+RETRIEVAL_SCORE_THRESHOLD = float(os.environ.get("RETRIEVAL_SCORE_THRESHOLD", "0.78"))
 
 if not PINECONE_API_KEY:
     raise RuntimeError("Missing required environment variable: PINECONE_API_KEY")
@@ -29,7 +29,10 @@ docsearch = PineconeVectorStore.from_existing_index(
     index_name=index_name,
     embedding=embeddings,
 )
-retriever = docsearch.as_retriever(search_type="similarity", search_kwargs={"k": 3})
+retriever = docsearch.as_retriever(
+    search_type="similarity_score_threshold",
+    search_kwargs={"k": 3, "score_threshold": RETRIEVAL_SCORE_THRESHOLD},
+)
 
 llm_endpoint = HuggingFaceEndpoint(
     repo_id="meta-llama/Llama-3.1-8B-Instruct",
@@ -50,7 +53,6 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 qa_chain = create_stuff_documents_chain(llm, prompt)
-rag_chain = create_retrieval_chain(retriever, qa_chain)
 
 
 @app.route("/")
@@ -65,12 +67,28 @@ def chat():
     if not msg.strip():
         return "Please enter a valid question.", 400
     try:
-        response = rag_chain.invoke({"input": msg, "chat_history": chat_history})
-        answer = str(response["answer"])
+        docs = retriever.get_relevant_documents(msg)
+        if not docs:
+            refusal = "I don't know based on the provided documents."
+            chat_history.append(HumanMessage(content=msg))
+            chat_history.append(AIMessage(content=refusal))
+            if len(chat_history) > 20:
+                chat_history = chat_history[-20:]
+            return refusal
+
+        response = qa_chain.invoke({"input": msg, "chat_history": chat_history, "context": docs})
+        if isinstance(response, str):
+            answer = response
+        elif hasattr(response, "content"):
+            answer = response.content
+        elif isinstance(response, dict):
+            answer = response.get("answer") or response.get("output_text") or str(response)
+        else:
+            answer = str(response)
 
         # Extract unique sources
         sources = set()
-        for doc in response.get("context", []):
+        for doc in docs:
             src = doc.metadata.get("source", "")
             if src:
                 sources.add(os.path.basename(src))  # just filename, not full path
